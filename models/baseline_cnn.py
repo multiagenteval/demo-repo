@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Tuple
+from typing import List
 
 class BaselineCNN(nn.Module):
     def __init__(
@@ -33,19 +33,16 @@ class BaselineCNN(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # First conv block
         x = self.conv1(x)
         x = self.bn1(x)
         x = F.relu(x)
         x = F.max_pool2d(x, 2)
         
-        # Second conv block
         x = self.conv2(x)
         x = self.bn2(x)
         x = F.relu(x)
         x = F.max_pool2d(x, 2)
         
-        # Flatten and fully connected layers
         x = x.view(x.size(0), -1)
         x = self.dropout(x)
         x = F.relu(self.fc1(x))
