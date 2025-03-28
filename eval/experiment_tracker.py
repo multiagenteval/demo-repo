@@ -3,6 +3,7 @@ import json
 import yaml
 from datetime import datetime
 import git
+from typing import Dict
 
 class ExperimentTracker:
     def __init__(self, base_dir: str = "experiments"):
@@ -48,24 +49,38 @@ class ExperimentTracker:
             print(f"No baseline found: {e}")
         return None
 
-    def compare_with_baseline(self, current_metrics: dict) -> dict:
-        """Compare current metrics with baseline"""
-        baseline = self.load_baseline()
-        if not baseline:
-            return {"status": "no_baseline"}
+    def compare_with_baseline(self, current_metrics: Dict) -> Dict:
+        """Compare current metrics with baseline, handling None values"""
+        try:
+            baseline_metrics = self.load_baseline()
+            if not baseline_metrics:
+                return {'status': 'no_baseline'}
             
-        baseline_metrics = baseline["metrics"]
-        
-        # Compare key metrics
-        comparisons = {}
-        for key in current_metrics:
-            if key in baseline_metrics:
-                diff = current_metrics[key] - baseline_metrics[key]
-                comparisons[key] = {
-                    "current": current_metrics[key],
-                    "baseline": baseline_metrics[key],
-                    "diff": diff,
-                    "diff_percent": (diff / baseline_metrics[key]) * 100
-                }
-        
-        return comparisons 
+            comparisons = {}
+            for key in current_metrics:
+                current_val = current_metrics.get(key)
+                baseline_val = baseline_metrics["metrics"].get(key)
+                
+                # Only compare if both values are not None
+                if current_val is not None and baseline_val is not None:
+                    diff = current_val - baseline_val
+                    comparisons[key] = {
+                        'current': current_val,
+                        'baseline': baseline_val,
+                        'diff': diff,
+                        'diff_percent': (diff / baseline_val) * 100 if baseline_val != 0 else float('inf')
+                    }
+                else:
+                    comparisons[key] = {
+                        'current': current_val,
+                        'baseline': baseline_val,
+                        'diff': None,
+                        'diff_percent': None,
+                        'status': 'incomplete_data'
+                    }
+            
+            return comparisons
+            
+        except Exception as e:
+            print(f"Error comparing with baseline: {e}")
+            return {'status': 'comparison_error', 'error': str(e)} 

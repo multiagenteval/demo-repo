@@ -13,8 +13,14 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from eval.experiment_tracker import ExperimentTracker
-import subprocess
-from eval.adversarial import create_adversarial_loader
+import logging
+
+# Set up logging at the start of the file, before any logger usage
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 def save_confusion_matrix(y_true, y_pred, save_path):
     plt.figure(figsize=(10, 8))
@@ -47,148 +53,152 @@ def calculate_metrics(y_true, y_pred, probas):
     return metrics
 
 def train():
-    # Load config
-    config_loader = ConfigLoader()
-    config = config_loader.load_experiment_config('configs/base_config.yaml')
-    
-    # Setup device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-    
-    # Load dataset
-    dataset_loader = MNISTLoader(
-        data_dir='data/raw',
-        batch_size=config['dataset']['params']['batch_size']
-    )
-    train_loader, test_loader = dataset_loader.load_data()
-    
-    # Initialize model
-    model = BaselineCNN(
-        input_shape=config['model']['params']['input_shape'],
-        hidden_dims=config['model']['params']['hidden_dims'],
-        num_classes=config['model']['params']['num_classes'],
-        dropout_rate=config['model']['params'].get('dropout_rate', 0.1)
-    ).to(device)
-    
-    # Training setup
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(
-        model.parameters(),
-        lr=config['model']['params']['learning_rate']
-    )
-    
-    # Create all necessary directories
-    save_dir = Path('models/checkpoints')
-    plots_dir = Path('experiments/plots')
-    metrics_dir = Path('experiments/metrics')
-    
-    # Create all directories
-    save_dir.mkdir(parents=True, exist_ok=True)
-    plots_dir.mkdir(parents=True, exist_ok=True)
-    metrics_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Initialize experiment tracker
-    tracker = ExperimentTracker()
-    
-    # Training loop
-    num_epochs = 5
-    evaluator = ModelEvaluator(config)
-    best_accuracy = 0.0
-    
-    print("Starting training...")
-    for epoch in range(num_epochs):
-        model.train()
-        for batch_idx, (data, target) in enumerate(train_loader):
-            data, target = data.to(device), target.to(device)
-            
-            optimizer.zero_grad()
-            output = model(data)
-            loss = criterion(output, target)
-            loss.backward()
-            optimizer.step()
-            
-            if batch_idx % 100 == 0:
-                print(f'Epoch {epoch+1}/{num_epochs} [{batch_idx * len(data)}/{len(train_loader.dataset)} '
-                      f'({100. * batch_idx / len(train_loader):.0f}%)]\tLoss: {loss.item():.6f}')
+    try:
+        # Load config
+        logger.info("Loading configuration...")
+        config_loader = ConfigLoader()
+        config = config_loader.load_experiment_config('configs/base_config.yaml')
         
-        # Evaluate after each epoch
-        metrics = evaluator.evaluate(model, test_loader, device, name=f'epoch_{epoch+1}')
-        print(f"\nEpoch {epoch+1} Accuracy: {metrics['accuracy']:.4f}")
+        # Setup device
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Using device: {device}")
         
-        # Save best model
-        if metrics['accuracy'] > best_accuracy:
-            best_accuracy = metrics['accuracy']
-            torch.save(model.state_dict(), save_dir / 'best_model.pth')
-            
-            # Get predictions for confusion matrix
-            model.eval()
-            all_preds = []
-            all_targets = []
-            
-            with torch.no_grad():
-                for data, target in test_loader:
-                    data, target = data.to(device), target.to(device)
-                    output = model(data)
-                    preds = torch.argmax(output, dim=1)
-                    all_preds.extend(preds.cpu().numpy())
-                    all_targets.extend(target.cpu().numpy())
-            
-            # Save confusion matrix
-            if config['tracking']['log_confusion_matrix']:
-                save_confusion_matrix(
-                    np.array(all_targets),
-                    np.array(all_preds),
-                    plots_dir / f'confusion_matrix_epoch_{epoch+1}.png'
-                )
-            
-            # Save metrics
-            with open(metrics_dir / f'metrics_epoch_{epoch+1}.json', 'w') as f:
-                json.dump(metrics, f, indent=2)
-    
-    print(f"\nTraining completed! Best accuracy: {best_accuracy:.4f}")
-    
-    # After training, save experiment results
-    final_metrics = evaluator.evaluate(model, test_loader, device, name='final')
-    experiment_file = tracker.save_experiment(final_metrics, config)
-    
-    # Compare with baseline
-    comparisons = tracker.compare_with_baseline(final_metrics)
-    print("\nComparison with baseline:")
-    for metric, comp in comparisons.items():
-        print(f"{metric}:")
-        print(f"  Current: {comp['current']:.4f}")
-        print(f"  Baseline: {comp['baseline']:.4f}")
-        print(f"  Change: {comp['diff_percent']:+.2f}%")
-
-    # Load multiple eval datasets
-    eval_loaders = {
-        'mnist_test': test_loader,
-        'mnist_balanced': create_balanced_loader(test_dataset),
-        'mnist_noisy': create_noisy_loader(test_dataset),
-        'mnist_adversarial': create_adversarial_loader(
-            model, 
-            test_loader,
-            epsilon=config['dataset']['eval'][3]['params']['epsilon'],
-            device=device
+        # Load dataset
+        dataset_loader = MNISTLoader(
+            data_dir='data/raw',
+            batch_size=config['dataset']['params']['batch_size']
         )
-    }
-    
-    # Evaluate on all test sets
-    evaluator = ModelEvaluator(config)
-    results = evaluator.evaluate(model, eval_loaders)
-    
-    # Get git commit hash for versioning
-    commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
-    
-    # Save results with version metadata
-    evaluator.save_results(results, commit_hash)
-    
-    # Print adversarial performance
-    adv_results = results['mnist_adversarial']
-    print("\nAdversarial Attack Results:")
-    print(f"Accuracy under attack: {adv_results['metrics']['accuracy']:.4f}")
-    print(f"Original accuracy: {results['mnist_test']['metrics']['accuracy']:.4f}")
-    print(f"Robustness gap: {results['mnist_test']['metrics']['accuracy'] - adv_results['metrics']['accuracy']:.4f}")
+        train_loader, test_loader = dataset_loader.load_data()
+        
+        # Initialize model
+        model = BaselineCNN(
+            input_shape=config['model']['params']['input_shape'],
+            hidden_dims=config['model']['params']['hidden_dims'],
+            num_classes=config['model']['params']['num_classes'],
+            dropout_rate=config['model']['params'].get('dropout_rate', 0.1)
+        ).to(device)
+        
+        # Training setup
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(
+            model.parameters(),
+            lr=config['model']['params']['learning_rate']
+        )
+        
+        # Create all necessary directories
+        save_dir = Path('models/checkpoints')
+        plots_dir = Path('experiments/plots')
+        metrics_dir = Path('experiments/metrics')
+        
+        # Create all directories
+        save_dir.mkdir(parents=True, exist_ok=True)
+        plots_dir.mkdir(parents=True, exist_ok=True)
+        metrics_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize experiment tracker
+        tracker = ExperimentTracker()
+        
+        # Training loop
+        num_epochs = 5
+        evaluator = ModelEvaluator(config)
+        best_accuracy = 0.0
+        
+        print("Starting training...")
+        
+        # Add learning rate warmup
+        scheduler = optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=config['model']['params']['learning_rate'],
+            epochs=num_epochs,
+            steps_per_epoch=len(train_loader)
+        )
+        
+        # Add training sanity checks
+        for epoch in range(num_epochs):
+            model.train()
+            epoch_loss = 0.0
+            for batch_idx, (data, target) in enumerate(train_loader):
+                data, target = data.to(device), target.to(device)
+                
+                # Add data sanity check
+                if batch_idx == 0:
+                    logger.info(f"Input range: [{data.min():.3f}, {data.max():.3f}]")
+                    logger.info(f"Target distribution: {torch.bincount(target)}")
+                
+                optimizer.zero_grad()
+                output = model(data)
+                loss = criterion(output, target)
+                loss.backward()
+                optimizer.step()
+                scheduler.step()
+                
+                epoch_loss += loss.item()
+                
+                if batch_idx % 100 == 0:
+                    logger.info(f'Epoch {epoch+1}/{num_epochs} '
+                              f'[{batch_idx * len(data)}/{len(train_loader.dataset)} '
+                              f'({100. * batch_idx / len(train_loader):.0f}%)] '
+                              f'Loss: {loss.item():.6f}')
+            
+            avg_epoch_loss = epoch_loss / len(train_loader)
+            logger.info(f"Epoch {epoch+1} average loss: {avg_epoch_loss:.4f}")
+            
+            # Evaluate
+            metrics = evaluator.evaluate(model, test_loader, device, name=f'epoch_{epoch+1}')
+            
+            # Handle potentially None metrics safely
+            accuracy = metrics.get('accuracy')
+            if accuracy is not None:
+                logger.info(f"\nEpoch {epoch+1} Accuracy: {accuracy:.4f}")
+                
+                # Save best model if accuracy improved
+                if accuracy > best_accuracy:
+                    best_accuracy = accuracy
+                    torch.save(model.state_dict(), save_dir / 'best_model.pth')
+            else:
+                logger.warning(f"\nEpoch {epoch+1} Accuracy: Failed to calculate")
+        
+        # Final summary
+        if best_accuracy > 0:
+            logger.info(f"\nTraining completed! Best accuracy: {best_accuracy:.4f}")
+        else:
+            logger.warning("\nTraining completed but no valid accuracy was recorded")
+        
+        # After training, save experiment results
+        final_metrics = evaluator.evaluate(model, test_loader, device, name='final')
+        experiment_file = tracker.save_experiment(final_metrics, config)
+        
+        # Compare with baseline
+        comparisons = tracker.compare_with_baseline(final_metrics)
+        print("\nComparison with baseline:")
+        if isinstance(comparisons, dict) and 'status' in comparisons:
+            if comparisons['status'] == 'no_baseline':
+                logger.info("No baseline metrics found - this will be the baseline")
+            elif comparisons['status'] == 'comparison_error':
+                logger.error(f"Error comparing metrics: {comparisons.get('error')}")
+        else:
+            for metric, comp in comparisons.items():
+                if comp.get('status') == 'incomplete_data':
+                    logger.warning(f"{metric}: Unable to compare (missing data)")
+                    continue
+                    
+                current = comp.get('current')
+                baseline = comp.get('baseline')
+                diff_percent = comp.get('diff_percent')
+                
+                if all(v is not None for v in [current, baseline, diff_percent]):
+                    logger.info(
+                        f"{metric}:\n"
+                        f"  Current: {current:.4f}\n"
+                        f"  Baseline: {baseline:.4f}\n"
+                        f"  Change: {diff_percent:+.2f}%"
+                    )
+                else:
+                    logger.warning(f"{metric}: Incomplete comparison data")
+
+    except Exception as e:
+        logger.error(f"Training failed: {e}")
+        raise
 
 if __name__ == "__main__":
     train() 

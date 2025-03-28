@@ -1,27 +1,22 @@
-# Deep Learning Framework
+# Deep Learning
 torch>=2.0.0
 torchvision>=0.15.0
 
-# Data Processing
+# Data Processing & ML
 numpy>=1.24.0
-pandas>=2.0.0  # For data manipulation and analysis
-
-# Configuration
-PyYAML>=6.0
-
-# Machine Learning & Metrics
 scikit-learn>=1.2.0
 
 # Visualization
-matplotlib>=3.7.0  # For plotting confusion matrices and training curves
-seaborn>=0.12.0   # For enhanced plotting
+matplotlib>=3.7.0
+seaborn>=0.12.0
 
 # Utilities
-requests>=2.31.0  # For manual dataset downloads
-tqdm>=4.65.0      # For progress bars
-typing-extensions>=4.5.0  # For enhanced type hints
+PyYAML>=6.0
+requests>=2.31.0
+tqdm>=4.65.0
 
-# Optional but recommended
-ipython>=8.0.0    # For interactive development
-jupyter>=1.0.0    # For notebook experimentation
-pillow>=9.5.0     # For image processing (required by torchvision) 
+# Testing
+pytest>=7.0.0
+
+# Add this line to existing requirements
+GitPython>=3.1.0 

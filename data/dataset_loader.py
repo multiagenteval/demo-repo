@@ -6,6 +6,8 @@ import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from typing import Tuple, Callable
+from .dataset_registry import DatasetRegistry, DatasetVersion
+import numpy as np
 
 class MNISTLoader:
     def __init__(self, data_dir: str = 'data/raw', batch_size: int = 32):
@@ -51,44 +53,21 @@ class MNISTLoader:
                     for chunk in response.iter_content(chunk_size=8192):
                         f.write(chunk)
 
-    def load_data(self) -> Tuple[DataLoader, DataLoader]:
-        """Load MNIST dataset with automatic fallback to manual download"""
-        try:
-            # Try automatic download first
-            train_dataset = self._download_with_retry(
-                lambda: datasets.MNIST(
-                    self.data_dir,
-                    train=True,
-                    download=True,
-                    transform=self.transform
-                )
-            )
-            
-            test_dataset = self._download_with_retry(
-                lambda: datasets.MNIST(
-                    self.data_dir,
-                    train=False,
-                    download=True,
-                    transform=self.transform
-                )
-            )
-        except Exception as e:
-            print(f"Automatic download failed: {e}")
-            print("Trying manual download...")
-            self._manual_download()
-            # Try loading the manually downloaded data
-            train_dataset = datasets.MNIST(
-                self.data_dir,
-                train=True,
-                download=False,
-                transform=self.transform
-            )
-            test_dataset = datasets.MNIST(
-                self.data_dir,
-                train=False,
-                download=False,
-                transform=self.transform
-            )
+    def load_data(self):
+        """Load MNIST dataset"""
+        train_dataset = datasets.MNIST(
+            self.data_dir,
+            train=True,
+            download=True,
+            transform=self.transform
+        )
+        
+        test_dataset = datasets.MNIST(
+            self.data_dir,
+            train=False,
+            download=True,
+            transform=self.transform
+        )
 
         train_loader = DataLoader(
             train_dataset,
