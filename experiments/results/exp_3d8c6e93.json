@@ -1,0 +1,91 @@
+{
+  "timestamp": "2025-03-28T18:03:52.430005",
+  "commit_hash": "3d8c6e93cb203bc8be40886773a14546f9fa8470",
+  "commit_message": "[baseline] Initial working model with metric tracking\n\nInfrastructure:\n- Add testing framework and configuration\n- Add metric tracking and registry\n- Add experiment tracking\n- Add config validation and access utilities\n- Update requirements structure\n\nTraining:\n- Working MNIST model pipeline\n- Proper error handling and logging\n- Metric calculation and comparison\n- Experiment tracking across commits\n\nThis establishes the baseline for model performance and evaluation infrastructure.\n",
+  "metrics": {
+    "accuracy": 0.1135,
+    "f1": 0.023138302649304,
+    "precision": 0.01288225,
+    "recall": 0.1135
+  },
+  "config": {
+    "dataset": {
+      "name": "mnist",
+      "type": "classification",
+      "params": {
+        "batch_size": 32,
+        "train_path": "data/raw/mnist/train",
+        "test_path": "data/raw/mnist/test"
+      }
+    },
+    "model": {
+      "name": "baseline_cnn",
+      "type": "pytorch",
+      "params": {
+        "input_shape": [
+          1,
+          28,
+          28
+        ],
+        "hidden_dims": [
+          32,
+          64
+        ],
+        "num_classes": 10,
+        "learning_rate": 0.001,
+        "dropout_rate": 0.1
+      }
+    },
+    "metrics": {
+      "version": "v1",
+      "primary": [
+        {
+          "name": "accuracy",
+          "threshold": 0.7
+        },
+        {
+          "name": "f1",
+          "threshold": 0.65
+        }
+      ],
+      "secondary": [
+        {
+          "name": "precision",
+          "threshold": 0.6
+        },
+        {
+          "name": "recall",
+          "threshold": 0.6
+        }
+      ]
+    },
+    "tracking": {
+      "log_confusion_matrix": true
+    },
+    "eval": [
+      {
+        "name": "mnist_test",
+        "version": "v1",
+        "description": "Standard MNIST test set"
+      },
+      {
+        "name": "mnist_balanced",
+        "version": "v1",
+        "description": "Class-balanced MNIST test set"
+      },
+      {
+        "name": "mnist_noisy",
+        "version": "v1",
+        "description": "MNIST test set with added noise"
+      },
+      {
+        "name": "mnist_adversarial",
+        "version": "v1",
+        "description": "MNIST test set with FGSM adversarial attacks",
+        "params": {
+          "epsilon": 0.3
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "timestamp": "2025-03-28T17:34:57.439441",
+  "commit_hash": "3c57c2cc08a4d2378e830045aa72047085cbe55a",
+  "commit_message": "[eval-update] Add adversarial evaluation dataset\n\nChanges:\n- Add FGSM adversarial attack evaluation\n- Track model robustness to adversarial examples\n- Compare performance between clean and adversarial data\n- Add robustness metrics to evaluation pipeline\n\nImpact: This adds security evaluation metrics without\nchanging the original metrics or training process.\nPrevious results remain valid and comparable.\n",
+  "metrics": {
+    "accuracy": 0.1135,
+    "f1": 0.023138302649304,
+    "precision": 0.01288225,
+    "recall": 0.1135
+  },
+  "config": {
+    "dataset": {
+      "name": "mnist",
+      "type": "classification",
+      "params": {
+        "batch_size": 32,
+        "train_path": "data/raw/mnist/train",
+        "test_path": "data/raw/mnist/test"
+      }
+    },
+    "model": {
+      "name": "baseline_cnn",
+      "type": "pytorch",
+      "params": {
+        "input_shape": [
+          1,
+          28,
+          28
+        ],
+        "hidden_dims": [
+          32,
+          64
+        ],
+        "num_classes": 10,
+        "learning_rate": 0.001,
+        "dropout_rate": 0.1
+      }
+    },
+    "metrics": {
+      "version": "v1",
+      "primary": [
+        {
+          "name": "accuracy",
+          "threshold": 0.7
+        },
+        {
+          "name": "f1",
+          "threshold": 0.65
+        }
+      ],
+      "secondary": [
+        {
+          "name": "precision",
+          "threshold": 0.6
+        },
+        {
+          "name": "recall",
+          "threshold": 0.6
+        }
+      ]
+    },
+    "tracking": {
+      "log_confusion_matrix": true
+    },
+    "eval": [
+      {
+        "name": "mnist_test",
+        "version": "v1",
+        "description": "Standard MNIST test set"
+      },
+      {
+        "name": "mnist_balanced",
+        "version": "v1",
+        "description": "Class-balanced MNIST test set"
+      },
+      {
+        "name": "mnist_noisy",
+        "version": "v1",
+        "description": "MNIST test set with added noise"
+      },
+      {
+        "name": "mnist_adversarial",
+        "version": "v1",
+        "description": "MNIST test set with FGSM adversarial attacks",
+        "params": {
+          "epsilon": 0.3
+        }
+      }
+    ]
+  }
+}

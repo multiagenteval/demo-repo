@@ -59,14 +59,20 @@ def train():
         config_loader = ConfigLoader()
         config = config_loader.load_experiment_config('configs/base_config.yaml')
         
-        # Setup device
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device: {device}")
+        # Setup device - optimize for M3
+        if torch.backends.mps.is_available():
+            device = torch.device("mps")
+            logger.info("Using Apple M3 GPU (MPS)")
+        else:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        logger.info(f"Using device: {device}")
         
-        # Load dataset
+        # Load dataset with optimized settings
         dataset_loader = MNISTLoader(
             data_dir='data/raw',
-            batch_size=config['dataset']['params']['batch_size']
+            batch_size=config['dataset']['params']['batch_size'],
+            num_workers=4,  # Optimize data loading
+            pin_memory=device.type in ['cuda', 'mps']  # Enable for GPU
         )
         train_loader, test_loader = dataset_loader.load_data()
         
@@ -78,34 +84,34 @@ def train():
             dropout_rate=config['model']['params'].get('dropout_rate', 0.1)
         ).to(device)
         
-        # Training setup
+        # Use mixed precision for faster training (only for CUDA)
+        scaler = torch.cuda.amp.GradScaler(enabled=device.type == 'cuda')  # Only enable for CUDA, not MPS
+        
+        # Training setup with optimized parameters
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(
+        optimizer = optim.AdamW(  # Switch to AdamW
             model.parameters(),
-            lr=config['model']['params']['learning_rate']
+            lr=config['model']['params']['learning_rate'],
+            weight_decay=0.01
         )
         
-        # Create all necessary directories
+        # Create directories
         save_dir = Path('models/checkpoints')
         plots_dir = Path('experiments/plots')
         metrics_dir = Path('experiments/metrics')
+        for d in [save_dir, plots_dir, metrics_dir]:
+            d.mkdir(parents=True, exist_ok=True)
         
-        # Create all directories
-        save_dir.mkdir(parents=True, exist_ok=True)
-        plots_dir.mkdir(parents=True, exist_ok=True)
-        metrics_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Initialize experiment tracker
+        # Initialize tracker
         tracker = ExperimentTracker()
         
-        # Training loop
+        # Training loop with optimizations
         num_epochs = 5
         evaluator = ModelEvaluator(config)
         best_accuracy = 0.0
         
-        print("Starting training...")
+        logger.info("Starting training...")
         
-        # Add learning rate warmup
         scheduler = optim.lr_scheduler.OneCycleLR(
             optimizer,
             max_lr=config['model']['params']['learning_rate'],
@@ -113,25 +119,39 @@ def train():
             steps_per_epoch=len(train_loader)
         )
         
-        # Add training sanity checks
         for epoch in range(num_epochs):
             model.train()
             epoch_loss = 0.0
+            
             for batch_idx, (data, target) in enumerate(train_loader):
                 data, target = data.to(device), target.to(device)
                 
-                # Add data sanity check
-                if batch_idx == 0:
+                # Data sanity check (first batch only)
+                if batch_idx == 0 and epoch == 0:
                     logger.info(f"Input range: [{data.min():.3f}, {data.max():.3f}]")
                     logger.info(f"Target distribution: {torch.bincount(target)}")
                 
-                optimizer.zero_grad()
-                output = model(data)
-                loss = criterion(output, target)
-                loss.backward()
-                optimizer.step()
-                scheduler.step()
+                # Mixed precision training
+                if device.type == 'cuda':
+                    with torch.autocast(device_type='cuda'):
+                        output = model(data)
+                        loss = criterion(output, target)
+                else:
+                    # Regular training for CPU and MPS
+                    output = model(data)
+                    loss = criterion(output, target)
                 
+                optimizer.zero_grad(set_to_none=True)  # More efficient than zero_grad()
+                
+                if device.type == 'mps':
+                    loss.backward()
+                    optimizer.step()
+                else:
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                
+                scheduler.step()
                 epoch_loss += loss.item()
                 
                 if batch_idx % 100 == 0:
@@ -146,58 +166,69 @@ def train():
             # Evaluate
             metrics = evaluator.evaluate(model, test_loader, device, name=f'epoch_{epoch+1}')
             
-            # Handle potentially None metrics safely
-            accuracy = metrics.get('accuracy')
-            if accuracy is not None:
+            if metrics and 'accuracy' in metrics:
+                accuracy = metrics['accuracy']
                 logger.info(f"\nEpoch {epoch+1} Accuracy: {accuracy:.4f}")
                 
-                # Save best model if accuracy improved
                 if accuracy > best_accuracy:
                     best_accuracy = accuracy
                     torch.save(model.state_dict(), save_dir / 'best_model.pth')
             else:
-                logger.warning(f"\nEpoch {epoch+1} Accuracy: Failed to calculate")
+                logger.warning(f"\nEpoch {epoch+1}: Failed to calculate metrics")
         
-        # Final summary
-        if best_accuracy > 0:
-            logger.info(f"\nTraining completed! Best accuracy: {best_accuracy:.4f}")
+        # Final evaluation on all datasets
+        eval_loaders = {
+            'test': test_loader,
+            'test_balanced': dataset_loader.create_balanced_loader(dataset_loader.test_dataset),
+            'test_adversarial': dataset_loader.create_adversarial_loader(model, test_loader, epsilon=0.1)
+        }
+        
+        metrics_by_dataset = {}
+        for dataset_name, loader in eval_loaders.items():
+            logger.info(f"\nEvaluating on {dataset_name} dataset...")
+            metrics = evaluator.evaluate(model, loader, device, name=f'{dataset_name}')
+            
+            # Validate metrics
+            if not metrics:
+                logger.error(f"No metrics returned for {dataset_name}")
+                continue
+            
+            if metrics['accuracy'] < 0.5:  # Basic sanity check
+                logger.warning(f"Unusually low accuracy ({metrics['accuracy']:.4f}) for {dataset_name}")
+            
+            metrics_by_dataset[dataset_name] = metrics
+            logger.info(f"{dataset_name} metrics: {metrics}")
+        
+        # Verify we have metrics before saving
+        if metrics_by_dataset:
+            # Save experiment with status
+            experiment = tracker.save_experiment(metrics_by_dataset, config, status="pending")
+            
+            # Verify save
+            if not tracker.json_file.exists():
+                logger.error("Failed to save JSON metrics file")
+            if not tracker.csv_file.exists():
+                logger.error("Failed to save CSV metrics file")
         else:
-            logger.warning("\nTraining completed but no valid accuracy was recorded")
-        
-        # After training, save experiment results
-        final_metrics = evaluator.evaluate(model, test_loader, device, name='final')
-        experiment_file = tracker.save_experiment(final_metrics, config)
+            logger.error("No metrics collected - skipping save")
         
         # Compare with baseline
-        comparisons = tracker.compare_with_baseline(final_metrics)
-        print("\nComparison with baseline:")
-        if isinstance(comparisons, dict) and 'status' in comparisons:
-            if comparisons['status'] == 'no_baseline':
-                logger.info("No baseline metrics found - this will be the baseline")
-            elif comparisons['status'] == 'comparison_error':
-                logger.error(f"Error comparing metrics: {comparisons.get('error')}")
-        else:
-            for metric, comp in comparisons.items():
-                if comp.get('status') == 'incomplete_data':
-                    logger.warning(f"{metric}: Unable to compare (missing data)")
-                    continue
-                    
-                current = comp.get('current')
-                baseline = comp.get('baseline')
-                diff_percent = comp.get('diff_percent')
-                
-                if all(v is not None for v in [current, baseline, diff_percent]):
-                    logger.info(
-                        f"{metric}:\n"
-                        f"  Current: {current:.4f}\n"
-                        f"  Baseline: {baseline:.4f}\n"
-                        f"  Change: {diff_percent:+.2f}%"
-                    )
-                else:
-                    logger.warning(f"{metric}: Incomplete comparison data")
+        comparisons = tracker.compare_with_baseline(metrics_by_dataset)
+        if comparisons.get("status") != "no_baseline":
+            print("\nComparison with baseline:")
+            for dataset_name, dataset_metrics in comparisons.items():
+                print(f"\n{dataset_name} Dataset:")
+                for metric_name, values in dataset_metrics.items():
+                    if isinstance(values, dict) and 'current' in values:  # Check if it's a metric comparison
+                        print(f"  {metric_name}:")
+                        print(f"    Baseline: {values['baseline']:.4f}")
+                        print(f"    Current:  {values['current']:.4f}")
+                        print(f"    Change:   {values['diff']:+.4f} ({values['diff_percent']:+.2f}%)")
+                        if values.get('status') == 'incomplete_data':
+                            print("    Warning: Incomplete data for comparison")
 
     except Exception as e:
-        logger.error(f"Training failed: {e}")
+        logger.error(f"Training failed: {e}", exc_info=True)
         raise
 
 if __name__ == "__main__":
