@@ -1,0 +1,17 @@
+dataset:
+  name: "mnist"
+  type: "classification"
+  params:
+    batch_size: 32
+    seed: 42  # Same seed for fair comparison
+
+model:
+  version: "v2"
+  name: "degraded_cnn"
+  type: "pytorch"
+  params:
+    input_shape: [1, 28, 28]
+    hidden_dims: [16, 32]  # Explicit smaller dims
+    num_classes: 10
+    learning_rate: 0.001
+    dropout_rate: 0.5 

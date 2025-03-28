@@ -12,16 +12,18 @@ from sklearn.metrics import precision_score, recall_score, f1_score, confusion_m
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+from eval.experiment_tracker import ExperimentTracker
 
 def save_confusion_matrix(y_true, y_pred, save_path):
-    cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(10, 8))
+    cm = confusion_matrix(y_true, y_pred)
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
     plt.title('Confusion Matrix')
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
+    plt.tight_layout()
     plt.savefig(save_path)
-    plt.close()
+    plt.close('all')
 
 def calculate_metrics(y_true, y_pred, probas):
     metrics = {
@@ -73,9 +75,18 @@ def train():
         lr=config['model']['params']['learning_rate']
     )
     
-    # Create save directory
+    # Create all necessary directories
     save_dir = Path('models/checkpoints')
+    plots_dir = Path('experiments/plots')
+    metrics_dir = Path('experiments/metrics')
+    
+    # Create all directories
     save_dir.mkdir(parents=True, exist_ok=True)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Initialize experiment tracker
+    tracker = ExperimentTracker()
     
     # Training loop
     num_epochs = 5
@@ -125,14 +136,27 @@ def train():
                 save_confusion_matrix(
                     np.array(all_targets),
                     np.array(all_preds),
-                    save_dir / f'confusion_matrix_epoch_{epoch+1}.png'
+                    plots_dir / f'confusion_matrix_epoch_{epoch+1}.png'
                 )
             
             # Save metrics
-            with open(save_dir / 'metrics.json', 'w') as f:
+            with open(metrics_dir / f'metrics_epoch_{epoch+1}.json', 'w') as f:
                 json.dump(metrics, f, indent=2)
     
     print(f"\nTraining completed! Best accuracy: {best_accuracy:.4f}")
+    
+    # After training, save experiment results
+    final_metrics = evaluator.evaluate(model, test_loader, device, name='final')
+    experiment_file = tracker.save_experiment(final_metrics, config)
+    
+    # Compare with baseline
+    comparisons = tracker.compare_with_baseline(final_metrics)
+    print("\nComparison with baseline:")
+    for metric, comp in comparisons.items():
+        print(f"{metric}:")
+        print(f"  Current: {comp['current']:.4f}")
+        print(f"  Baseline: {comp['baseline']:.4f}")
+        print(f"  Change: {comp['diff_percent']:+.2f}%")
 
 if __name__ == "__main__":
     train() 

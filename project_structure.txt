@@ -1,0 +1,8 @@
+demo-repo/
+├── data/                    # Dataset storage
+│   ├── raw/                # Original datasets
+│   └── processed/          # Processed versions if needed
+├── models/                 # Different model iterations
+├── eval/                   # Evaluation scripts and metrics
+├── experiments/           # Training runs and results
+└── README.md             # Project documentation 

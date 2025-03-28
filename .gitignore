@@ -46,4 +46,31 @@ Thumbs.db
 
 # Local development settings
 *.log
-local_settings.py 
+local_settings.py
+
+# Python package files
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+.python-version
+
+# Project specific
+data/raw/*
+!data/raw/.gitkeep
+models/checkpoints/*
+!models/checkpoints/.gitkeep
+experiments/metrics/*
+!experiments/metrics/.gitkeep 
