@@ -13,6 +13,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from eval.experiment_tracker import ExperimentTracker
+import subprocess
+from eval.adversarial import create_adversarial_loader
 
 def save_confusion_matrix(y_true, y_pred, save_path):
     plt.figure(figsize=(10, 8))
@@ -157,6 +159,36 @@ def train():
         print(f"  Current: {comp['current']:.4f}")
         print(f"  Baseline: {comp['baseline']:.4f}")
         print(f"  Change: {comp['diff_percent']:+.2f}%")
+
+    # Load multiple eval datasets
+    eval_loaders = {
+        'mnist_test': test_loader,
+        'mnist_balanced': create_balanced_loader(test_dataset),
+        'mnist_noisy': create_noisy_loader(test_dataset),
+        'mnist_adversarial': create_adversarial_loader(
+            model, 
+            test_loader,
+            epsilon=config['dataset']['eval'][3]['params']['epsilon'],
+            device=device
+        )
+    }
+    
+    # Evaluate on all test sets
+    evaluator = ModelEvaluator(config)
+    results = evaluator.evaluate(model, eval_loaders)
+    
+    # Get git commit hash for versioning
+    commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+    
+    # Save results with version metadata
+    evaluator.save_results(results, commit_hash)
+    
+    # Print adversarial performance
+    adv_results = results['mnist_adversarial']
+    print("\nAdversarial Attack Results:")
+    print(f"Accuracy under attack: {adv_results['metrics']['accuracy']:.4f}")
+    print(f"Original accuracy: {results['mnist_test']['metrics']['accuracy']:.4f}")
+    print(f"Robustness gap: {results['mnist_test']['metrics']['accuracy'] - adv_results['metrics']['accuracy']:.4f}")
 
 if __name__ == "__main__":
     train() 

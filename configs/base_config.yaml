@@ -1,34 +1,40 @@
 dataset:
-  name: "mnist"  # dataset identifier
-  type: "classification"  # classification, regression, etc
-  params:
-    train_path: "data/raw/mnist/train"
-    test_path: "data/raw/mnist/test"
-    val_split: 0.1
-    batch_size: 32
+  train:
+    name: "mnist"
+    version: "v1"  # original MNIST
+    params:
+      batch_size: 32
+  
+  eval:
+    - name: "mnist_test"
+      version: "v1"
+      description: "Standard MNIST test set"
+    - name: "mnist_balanced"
+      version: "v1"
+      description: "Class-balanced MNIST test set"
+    - name: "mnist_noisy"
+      version: "v1" 
+      description: "MNIST test set with added noise"
+    - name: "mnist_adversarial"
+      version: "v1"
+      description: "MNIST test set with FGSM adversarial attacks"
+      params:
+        epsilon: 0.3  # Perturbation magnitude
+
+metrics:
+  version: "v1"  # original metrics
+  definitions:
+    accuracy: "standard accuracy (correct/total)"
+    f1: "weighted average f1 score"
 
 model:
-  name: "baseline_cnn"  # model identifier
-  type: "pytorch"  # framework: pytorch, tensorflow, custom, etc
+  name: "baseline_cnn"
   params:
     input_shape: [1, 28, 28]
     hidden_dims: [32, 64]
     num_classes: 10
     learning_rate: 0.001
-    dropout_rate: 0.1
 
-metrics:
-  primary:
-    - name: "accuracy"
-      threshold: 0.70  # minimum acceptable value
-  secondary:
-    - name: "precision"
-      average: "weighted"
-    - name: "recall"
-      average: "weighted"
-    - name: "f1"
-      average: "weighted"
-  
 tracking:
   save_predictions: true
   log_confusion_matrix: true
