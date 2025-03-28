@@ -16,8 +16,8 @@ class BaselineCNN(nn.Module):
         self.input_shape = input_shape
         self.hidden_dims = hidden_dims
         
-        # Increased dropout significantly - common mistake when trying to prevent overfitting
-        self.dropout = nn.Dropout(0.8)  # Changed from 0.1 to 0.8
+        # Corrected dropout rate to reasonable value
+        self.dropout = nn.Dropout(0.3)  # Changed from 0.8 to 0.3
         
         # First conv layer with L2 regularization
         self.conv1 = nn.Conv2d(input_shape[0], hidden_dims[0], kernel_size=3, padding=1, padding_mode='reflect')
