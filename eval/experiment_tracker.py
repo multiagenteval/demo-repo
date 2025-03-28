@@ -36,9 +36,24 @@ class ExperimentTracker:
             "config": config
         }
 
+        # Load existing experiments or create new list
+        if self.json_file.exists():
+            try:
+                with open(self.json_file, 'r') as f:
+                    experiments = json.load(f)
+                    if isinstance(experiments, dict):
+                        experiments = [experiments]  # Convert single experiment to list
+            except json.JSONDecodeError:
+                experiments = []
+        else:
+            experiments = []
+
+        # Append new experiment
+        experiments.append(experiment)
+
         # Save with pretty printing for JSON
         with open(self.json_file, 'w') as f:
-            json.dump(experiment, f, indent=2)
+            json.dump(experiments, f, indent=2)
 
         # Save to CSV with proper value conversion
         self._save_csv(experiment)
@@ -160,4 +175,37 @@ class ExperimentTracker:
         if result_file.exists():
             with open(result_file) as f:
                 return json.load(f)
-        return None 
+        return None
+
+    def update_pending_metrics(self, commit_hash: str, commit_message: str):
+        """Update pending metrics with actual commit information"""
+        # Update JSON file
+        if self.json_file.exists():
+            with open(self.json_file, 'r') as f:
+                experiments = json.load(f)
+                if isinstance(experiments, dict):
+                    experiments = [experiments]  # Convert single experiment to list
+                
+                # Update the most recent pending experiment
+                for exp in reversed(experiments):
+                    if exp['git']['status'] == 'pending':
+                        exp['git'].update({
+                            'commit_hash': commit_hash,
+                            'commit_message': commit_message,
+                            'status': 'committed'
+                        })
+                        break
+                
+                # Save updated experiments
+                with open(self.json_file, 'w') as f:
+                    json.dump(experiments, f, indent=2)
+
+        # Update CSV file
+        if self.csv_file.exists():
+            df = pd.read_csv(self.csv_file)
+            # Update the most recent pending row
+            pending_idx = df[df['status'] == 'pending'].index[-1]
+            df.loc[pending_idx, 'commit_hash'] = commit_hash
+            df.loc[pending_idx, 'commit_message'] = commit_message
+            df.loc[pending_idx, 'status'] = 'committed'
+            df.to_csv(self.csv_file, index=False) 
