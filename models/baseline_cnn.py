@@ -35,24 +35,27 @@ class BaselineCNN(nn.Module):
         self.fc2 = nn.Linear(128, num_classes)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Added aggressive dropout throughout
+        # Added residual connections
+        identity = x
         x = self.conv1(x)
         x = self.bn1(x)
         x = F.relu(x)
-        x = self.dropout(x)  # New dropout
-        x = F.max_pool2d(x, 2)
+        x = self.dropout(x)
+        x = F.max_pool2d(x)
         
         x = self.conv2(x)
         x = self.bn2(x)
+        if x.shape == identity.shape:
+            x = x + identity  # Residual connection
         x = F.relu(x)
-        x = self.dropout(x)  # New dropout
+        x = self.dropout(x)
         x = F.max_pool2d(x, 2)
         
         x = x.view(x.size(0), -1)
         x = F.relu(self.fc1(x))
-        x = self.dropout(x)  # Increased dropout
+        x = self.dropout(x)
         x = self.fc2(x)
-        x = self.dropout(x)  # Final dropout
+        x = self.dropout(x)
         
         return x
 
