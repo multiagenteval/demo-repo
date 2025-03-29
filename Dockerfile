@@ -6,8 +6,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application
-COPY . .
+# Copy the application code and metrics
+COPY dashboard.py .
+COPY experiments/ experiments/
 
 # Expose the port Cloud Run expects
 EXPOSE 8080
