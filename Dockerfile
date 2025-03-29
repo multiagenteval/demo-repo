@@ -6,9 +6,9 @@ WORKDIR /app
 COPY dashboard_requirements.txt requirements.txt
 COPY dashboard.py .
 
-# Create data directory and minimal metrics file
-RUN mkdir -p data && \
-    echo '[]' > data/metrics_history.json
+# Create data directory and copy metrics file
+RUN mkdir -p data
+COPY experiments/metrics/metrics_history.json data/
 
 # Install only the required dependencies
 RUN pip install --no-cache-dir -r requirements.txt
