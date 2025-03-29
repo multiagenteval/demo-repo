@@ -45,7 +45,7 @@ st.set_page_config(layout="wide")
 st.title("ML Experiment Metrics Dashboard")
 
 # Load data
-df = load_data('data/metrics_history.json')
+df = load_data('metrics_history.json')
 
 # Check if we have any data
 if df.empty:
