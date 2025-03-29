@@ -1,31 +1,33 @@
-# AI Evaluation Ecosystem
+# ML Model Demo Repository
 
-A multi-agent evaluation ecosystem that plugs into your CI/CD process, evaluates your commits/releases, and provides bottom-up insight into your model performance across the board and longitudinally.
+This repository demonstrates how to integrate your ML project with the AI Evaluation Ecosystem. It shows a simple MNIST classifier with proper evaluation setup and CI/CD integration.
 
-## Features
+## Project Structure
 
-- **Commit Risk Analyzer**: Flagship agent that learns from historical commit-metric pairs to predict potential risks
-- **Metric Evaluator**: Comprehensive model evaluation across multiple datasets and metrics
-- **Test Suggester**: Recommends additional tests based on identified risks
-- **Performance Tracker**: Longitudinal tracking of model performance
-- **Interactive Dashboard**: Visualize model performance and commit impacts
-- **CI/CD Integration**: Seamless integration with GitHub Actions, Jenkins, and GitLab CI
+```
+.
+├── models/              # Model definitions
+├── train.py            # Training script
+├── inference.py        # Inference script
+├── data/               # Dataset directory
+├── configs/            # Configuration files
+├── tests/              # Test files
+├── .eval-config.yaml   # Evaluation ecosystem config
+└── .github/            # CI/CD workflows
+```
 
-## Installation
+## Integration with AI Evaluation Ecosystem
 
+1. Install the evaluation ecosystem:
 ```bash
 pip install ai-eval-ecosystem
 ```
 
-## Quick Start
-
-1. Add a configuration file to your ML project:
-
+2. Configure your project by creating `.eval-config.yaml`:
 ```yaml
-# .eval-config.yaml
 model:
-  name: "Your Model"
-  type: "classification"
+  name: "MNIST Classifier"
+  type: "image_classification"
   metrics:
     - accuracy
     - f1
@@ -43,54 +45,8 @@ evaluation:
     latency_ms: 100
 ```
 
-2. Start the dashboard:
-
-```bash
-eval-dashboard --config .eval-config.yaml
-```
-
-3. Analyze commits:
-
-```bash
-eval-analyze --config .eval-config.yaml
-```
-
-4. Get test suggestions:
-
-```bash
-eval-suggest --config .eval-config.yaml
-```
-
-## Architecture
-
-The ecosystem consists of several specialized agents:
-
-1. **Commit Risk Analyzer**
-   - Learns from historical commit-metric pairs
-   - Predicts potential risks from new commits
-   - Suggests additional tests
-
-2. **Metric Evaluator**
-   - Runs comprehensive model evaluations
-   - Tracks multiple metrics across datasets
-   - Generates detailed reports
-
-3. **Test Suggester**
-   - Recommends tests based on risks
-   - Learns from historical test effectiveness
-   - Prioritizes critical test cases
-
-4. **Performance Tracker**
-   - Tracks metrics over time
-   - Identifies trends and anomalies
-   - Generates performance reports
-
-## Integration
-
-### GitHub Actions
-
+3. Add GitHub Actions workflow (`.github/workflows/eval.yml`):
 ```yaml
-# .github/workflows/eval.yml
 name: Model Evaluation
 
 on:
@@ -109,47 +65,64 @@ jobs:
       - name: Install dependencies
         run: |
           pip install ai-eval-ecosystem
+          pip install -r requirements.txt
       - name: Run evaluation
         run: |
           eval-analyze --config .eval-config.yaml
           eval-suggest --config .eval-config.yaml
 ```
 
-### Jenkins
+## Local Development
 
-```groovy
-pipeline {
-    agent any
-    stages {
-        stage('Evaluate') {
-            steps {
-                sh 'pip install ai-eval-ecosystem'
-                sh 'eval-analyze --config .eval-config.yaml'
-                sh 'eval-suggest --config .eval-config.yaml'
-            }
-        }
-    }
-}
+1. Set up environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+pip install -r requirements.txt
 ```
 
-## Dashboard
+2. Train the model:
+```bash
+python train.py
+```
 
-The interactive dashboard provides:
+3. Run inference:
+```bash
+python inference.py
+```
 
-- Model performance overview
-- Detailed metrics analysis
-- Commit impact analysis
-- Test coverage insights
-- Risk predictions
+4. Run tests:
+```bash
+pytest
+```
 
-## Contributing
+## Model Details
 
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+This demo implements a CNN classifier for MNIST digits with:
+- Residual connections
+- Batch normalization
+- Dropout regularization
+- Adversarial training support
+
+## Metrics Tracking
+
+The model tracks:
+- Accuracy
+- F1 Score
+- Precision
+- Recall
+- Latency
+- Memory usage
+
+## CI/CD Integration
+
+The repository includes:
+- Automated testing
+- Model evaluation on commits
+- Performance monitoring
+- Risk analysis
+- Test suggestions
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License

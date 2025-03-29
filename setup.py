@@ -1,34 +1,32 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="ai-eval-ecosystem",
+    name="mnist-demo",
     version="0.1.0",
     packages=find_packages(),
     install_requires=[
-        "streamlit>=1.24.0",
-        "pandas>=1.5.0",
-        "plotly>=5.13.0",
-        "numpy>=1.21.0",
-        "pyyaml>=6.0.0",
-        "scikit-learn>=1.0.0",
         "torch>=2.0.0",
-        "gitpython>=3.1.0",
-        "requests>=2.28.0",
-        "python-dotenv>=0.19.0",
+        "torchvision>=0.15.0",
+        "numpy>=1.24.0",
+        "scikit-learn>=1.2.0",
+        "matplotlib>=3.7.0",
+        "seaborn>=0.12.0",
     ],
-    entry_points={
-        'console_scripts': [
-            'eval-dashboard=ai_eval_ecosystem.dashboard.dashboard:main',
-            'eval-analyze=ai_eval_ecosystem.core.agents.commit_analyzer:main',
-            'eval-suggest=ai_eval_ecosystem.core.agents.test_suggester:main',
+    extras_require={
+        'test': [
+            'pytest>=7.0.0',
+        ],
+        'dev': [
+            'jupyter>=1.0.0',
+            'black>=22.0.0',
         ],
     },
     author="Your Name",
     author_email="your.email@example.com",
-    description="A multi-agent evaluation ecosystem for ML model development",
+    description="Demo MNIST classifier showing AI Evaluation Ecosystem integration",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/ai-eval-ecosystem",
+    url="https://github.com/yourusername/maee-demo-repo",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
