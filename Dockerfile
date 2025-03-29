@@ -2,13 +2,13 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Copy requirements first to leverage Docker cache
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the application code and metrics
+# Copy only the required files
+COPY dashboard_requirements.txt requirements.txt
 COPY dashboard.py .
-COPY experiments/ experiments/
+COPY experiments/metrics/metrics_history.json data/
+
+# Install only the required dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose the port Cloud Run expects
 EXPOSE 8080
