@@ -1,0 +1,46 @@
+name: Model Evaluation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ai-eval-ecosystem
+          pip install -r requirements.txt
+          
+      - name: Run model evaluation
+        env:
+          GITHUB_WEBHOOK_SECRET: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+        run: |
+          # Run the commit risk analyzer
+          eval-analyze --config .eval-config.yaml
+          
+          # Get test suggestions
+          eval-suggest --config .eval-config.yaml
+          
+          # Run the dashboard (optional, for local development)
+          # eval-dashboard --config .eval-config.yaml
+          
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v2
+        with:
+          name: evaluation-results
+          path: |
+            metrics_history.json
+            evaluation_report.json
+            test_suggestions.json 

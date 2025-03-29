@@ -1,0 +1,8 @@
+# Ignore everything by default
+*
+
+# Don't ignore these specific files
+!dashboard.py
+!dashboard_requirements.txt
+!Dockerfile
+!metrics_history.json 

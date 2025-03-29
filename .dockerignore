@@ -1,6 +1,8 @@
+# Version control
 .git
 .gitignore
-.env
+
+# Python
 __pycache__
 *.pyc
 *.pyo
@@ -8,9 +10,25 @@ __pycache__
 .Python
 env/
 venv/
-.venv/
-pip-log.txt
-pip-delete-this-directory.txt
+.env
+*.log
+.DS_Store
+
+# Keep metrics file
+!experiments/metrics/metrics_history.json
+
+# Exclude other directories
+data/
+models/
+tests/
+configs/
+scripts/
+utils/
+eval/
+.pytest_cache/
+.github/
+requirements/
+
 .tox/
 .coverage
 .coverage.*
@@ -18,9 +36,6 @@ pip-delete-this-directory.txt
 nosetests.xml
 coverage.xml
 *.cover
-*.log
-.pytest_cache/
-.pytest_cache/
 *.egg-info/
 dist/
 build/

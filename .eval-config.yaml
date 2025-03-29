@@ -1,0 +1,81 @@
+# Client ML Project Configuration for AI Evaluation Ecosystem
+
+# Model information
+model:
+  name: "MNIST Classifier"
+  type: "image_classification"
+  description: "CNN model for MNIST digit classification"
+  metrics:
+    - accuracy
+    - f1
+    - precision
+    - recall
+    - latency
+    - memory_usage
+  datasets:
+    - name: "test"
+      path: "data/test"
+      description: "Standard MNIST test set"
+    - name: "test_balanced"
+      path: "data/test_balanced"
+      description: "Class-balanced test set"
+    - name: "test_adversarial"
+      path: "data/test_adversarial"
+      description: "Adversarially perturbed test set"
+
+# Evaluation settings
+evaluation:
+  schedule:
+    - on_commit
+    - nightly
+  thresholds:
+    accuracy: 0.95
+    f1: 0.94
+    precision: 0.94
+    recall: 0.94
+    latency_ms: 100
+    memory_mb: 500
+
+# Commit analysis settings
+commit_analysis:
+  significant_change_threshold: 0.01
+  max_history_commits: 100
+  risk_patterns:
+    - type: "performance_degradation"
+      threshold: -0.05
+    - type: "memory_leak"
+      threshold: 0.1
+    - type: "latency_increase"
+      threshold: 0.2
+
+# Test suggestion settings
+test_suggestion:
+  min_confidence: 0.8
+  max_suggestions: 5
+  categories:
+    - performance
+    - reliability
+    - security
+    - edge_cases
+
+# Integration settings
+integrations:
+  github:
+    enabled: true
+    webhook_secret: "${GITHUB_WEBHOOK_SECRET}"
+  cicd:
+    enabled: true
+    providers:
+      - github_actions
+
+# Dashboard settings
+dashboard:
+  theme: "light"
+  refresh_interval: 300  # seconds
+  metrics_display:
+    - accuracy
+    - f1
+    - precision
+    - recall
+    - latency
+    - memory_usage 
