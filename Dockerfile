@@ -20,7 +20,8 @@ COPY dashboard.py .
 RUN echo '[{"timestamp": "2025-03-28T18:52:03.972661", "git": {"commit_hash": "ad6013a5", "commit_message": "Test commit"}, "metrics_by_dataset": {"test": {"accuracy": 0.85, "f1": 0.84, "precision": 0.83, "recall": 0.82}}}]' > metrics_history.json
 
 # Expose the port Cloud Run expects
-EXPOSE 8080
+ENV PORT=8080
+EXPOSE ${PORT}
 
 # Command to run the application
-CMD ["streamlit", "run", "dashboard.py", "--server.port=8080", "--server.address=0.0.0.0"] 
+CMD streamlit run dashboard.py --server.port=${PORT} --server.address=0.0.0.0 
