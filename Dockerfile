@@ -5,6 +5,9 @@ WORKDIR /app
 # Copy only the required files
 COPY dashboard_requirements.txt requirements.txt
 COPY dashboard.py .
+
+# Create data directory and copy metrics file
+RUN mkdir -p data
 COPY experiments/metrics/metrics_history.json data/
 
 # Install only the required dependencies
